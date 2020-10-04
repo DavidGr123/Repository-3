@@ -1,6 +1,217 @@
 
 ## Exercise 1: Optimzing portfolios
 
+Take your personal dataset of 10 stocks, set the time-frame to January 2000/ August 2018 (use a year-month format - either `as.yearmon` from `zoo` or `yearmonth` from `tsibble`) and calculate monthly simple returns (if you have not done so yet)! Use `pivot_wider()` and `tk_xts()` to make a `xts` (timeseries) from it (having ten columns with simple returns calculated from adjusted prices).
+
+Getting 10 stocks: Apple (AAPL), Microsoft (MSFT), JPMorgan (JPM), Amazon (AMZN), 3M (MMM), Pfeizer (PFE), Bank of America (BAC), Intel (INTC), Exon Mobile (XOM) and IBM (IBM).
+
+Get the stock prices of the stocks from 2000-01-01 to 2018-08-31
+
+
+Create a vector with the stocks I want to observe
+```{r}
+stockselection <- c("AAPL", "MSFT", "JPM", "AMZN", "MMM", "PFE", "BAC", "INTC", "XOM", "IBM")
+stockselection
+```
+Get the stock prices
+```{r}
+stocks.prices <- stockselection %>%
+  tq_get(get  = "stock.prices", from = "2000-01-01",to = "2018-08-31") %>%
+  dplyr::group_by(symbol) #get all stock prices and sort them by symbol
+stocks.prices
+```
+
+create monthly return for the 10 stocks. Make 10 columns for each stock one column with covmatrix.
+
+```{r}
+stocks.returns.monthly <- stocks.prices %>% 
+  mutate(date=as.yearmon(date))%>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period="monthly",
+               type="arithmetic",
+               col_rename = "Stock.returns")
+stocks.returns.monthly
+```
+
+
+```{r}
+stock.returns.timeseries.xts <- pivot_wider(data = stocks.returns.monthly, names_from = symbol, values_from = Stock.returns)%>%
+  tk_xts(date_var = date, silent = TRUE)
+stock.returns.timeseries.xts
+```
+
+
+a)  As off now, we always perform the following steps before doing anything portfolio related: Check the summary/basic statistics and moments of the assets. Plot and check for (multivariate) normality (OPTIONAL). Check the correlations and do a scatterplot. Check the covariance/correlation structure.
+
+?lapply
+
+```{r}
+stock.returns.timeseries.mu.xts <- lapply(stock.returns.timeseries.xts,FUN=mean)
+stock.returns.timeseries.mu.xts
+```
+Calculate sigma (standard deviation) for each stock
+```{r}
+stock.returns.timeseries.sigma.xts <- lapply(stock.returns.timeseries.xts,FUN=sd)
+stock.returns.timeseries.sigma.xts
+```
+Calculate correlation matrix
+```{r}
+cormatrix <- cor(stock.returns.timeseries.xts)
+cormatrix
+````
+
+Plot the correlations
+```{r}
+chart.Correlation(R=stock.returns.timeseries.xts,method = "pearson"
+)
+````
+
+Calculate the covariance matrix
+```{r}
+covmatrix <- cov(stock.returns.timeseries.xts, use = "everything", method = "pearson")
+covmatrix
+```
+
+b)  Plot the average return of the assets against their standard deviation. Are there any dominated assets? Plot the efficient frontier using `chart.EfficientFrontier` and `chart.EF.Weights` (also check the `demo(demo_efficient_frontier)` from the `portfolioAnalytics`-package.
+                                                                                                                                                                                                
+                ##Calculate mu and sigma and visualize them in a plot
+                
+                
+                ```{r}
+                meanstocks <- stocks.returns.monthly %>%
+                  dplyr::group_by(symbol) %>%
+                  dplyr::summarize(mu = mean(Stock.returns, na.rm=TRUE))
+                stocks.returns.monthly
+                meanstocks
+                ````
+                
+                ```{r}
+                sdstocks <- stocks.returns.monthly %>%
+                  dplyr::group_by(symbol) %>%
+                  dplyr::summarize(sigma = sd(Stock.returns, na.rm=TRUE))
+                sdstocks
+                
+                sigmamu <- left_join(sdstocks, meanstocks, by = "symbol")
+                
+                sigmamu
+                
+                sigmamuggplot <- ggplot(sigmamu, aes(sigma, mu))+
+                  geom_point()+
+                  geom_label_repel(aes(label = symbol),
+                                   box.padding   = 0.2,
+                                   point.padding = 0.1,
+                                   label.size = 0.2,
+                                   segment.color = 'grey50', size = 2.5)+
+                  theme_classic()
+                sigmamuggplot 
+                ```
+                
+                there is no asset which dominates all the other assets
+                
+                
+                
+                
+                                                                                                                                                                                                
+                                                                                                                                                                                                c)	Now comes the fun: Work through the vignette of the `portfolioAnalytics`-package
+(`vignette("portfolio_vignette")`), set a full investment constraint and limit the portfolio weights to be 'long only' and calculate minimum-variance/maximum-return and quadratic utility portfolios.
+
+
+long only
+```{r}
+port <- portfolio.spec(assets = colnames(stock.returns.timeseries.xts),
+                       category_labels = stockselection)
+port <- add.constraint(portfolio=port, type="long_only")
+meanvar.portf <- add.objective(portfolio=port, type="return", name="mean")
+meanvar.portf <- add.objective(portfolio=port, type="risk", name="StdDev")
+summary(meanvar.portf, digits=2)
+prt_ef <- create.EfficientFrontier(R=stock.returns.timeseries.xts, portfolio=port, type="mean-StdDev", match.col = "StdDev")
+chart.EfficientFrontier(prt_ef, match.col="StdDev", type="b", rf=NULL, pch.assets = 2)
+chart.EF.Weights(prt_ef, colorset=rainbow(n = length(stockselection)), match.col="StdDev", cex.lab = 1
+                 , main = "StdDev")
+```
+
+
+full investment
+```{r}
+portfull <- portfolio.spec(assets = colnames(stock.returns.timeseries.xts))
+portfull <- add.constraint(portfolio=portfull, type="full_investment")
+meanvar.portf.full <- add.objective(portfolio=portfull, type="return", name="mean")
+meanvar.portf.full <- add.objective(portfolio=portfull, type="risk", name="StdDev")
+prt_ef_full <- create.EfficientFrontier(R=stock.returns.timeseries.xts, portfolio=portfull, type="mean-StdDev", match.col = "StdDev")
+chart.EfficientFrontier(prt_ef_full, match.col="StdDev", type="b", rf=NULL, pch.assets = 1)
+chart.EF.Weights(prt_ef_full, colorset=rainbow(n = length(stockselection)), match.col="StdDev", cex.lab = 1, main = "StdDev")
+```
+
+Minimum varriance
+```{r}
+port_l <- portfolio.spec(assets = colnames(stock.returns.timeseries.xts))
+port_l <- add.constraint(portfolio = port_l,
+                         type = "long_only")
+minvar <- add.objective(portfolio = port_l, type = "risk", name = "var")
+opt_minvar <- optimize.portfolio(R=stock.returns.timeseries.xts, portfolio = minvar, optimize_method = "ROI", trace = TRUE)
+print(opt_minvar)
+plot(opt_minvar, risk.col="StdDev", return.col="mean",
+     main="Minimum Variance Optimization", chart.assets=TRUE,
+     xlim=c(0, 0.1), ylim=c(0,0.012))
+```
+
+Maximize mean return with ROI
+```{r}
+maxret <-add.objective(portfolio=port_l, type="return", name="mean")
+opt_maxret <- optimize.portfolio(R=stock.returns.timeseries.xts, portfolio=maxret,
+                                 optimize_method="ROI",
+                                 trace=TRUE)
+print(opt_maxret)
+plot(opt_maxret, risk.col="StdDev", return.col="mean",
+     main="Maximum Return Optimization", chart.assets=TRUE,
+     xlim=c(0, 0.3), ylim=c(0,0.013))
+```
+
+Calculate quadratic utility portfolio
+```{r}
+qu <- add.objective(portfolio=port_l, type="return", name="mean")
+qu <- add.objective(portfolio=qu, type="risk", name="var", risk_aversion=0.25)
+opt_qu <- optimize.portfolio(R=stock.returns.timeseries.xts, portfolio=qu,
+                             optimize_method="ROI",
+                             trace=TRUE)
+print(opt_qu)
+plot(opt_qu, risk.col="StdDev", return.col="mean",
+     main="Quadratic Utility Optimization", chart.assets=TRUE,
+     xlim=c(0, 0.15), ylim=c(0, 0.015))
+```
+
+
+c)	Allow for short selling (delete the long only constraint). What happens to your portfolio? Illustrate using the efficient frontier! Combine efficient frontiers using `chart.EfficientFrontierOverlay` to highlight the differences.
+
+short selling
+```{r}
+portf.list <- combine.portfolios(list(port, port_l))
+legend.labels <- c("Full Investment", "Long Only")
+chart.EfficientFrontierOverlay(R=stock.returns.timeseries.xts,
+                               portfolio_list=portf.list, type="mean-StdDev", 
+                               match.col="StdDev", legend.loc="topleft", 
+                               legend.labels=legend.labels, cex.legend=0.6,
+                               labels.assets=FALSE, pch.assets=1)
+```
+
+
+
+
+d)	Play around with the constraints and see what happens. Illustrate using `chart.EfficientFrontierOverlay`.
+
+```{r}
+port_c <- add.constraint(portfolio=port, type="diversification", div_target=0.7)
+port_c <- add.constraint(portfolio=port_c, type="box", min=0.05, max=0.4)
+portf.list.c <- combine.portfolios(list(port, port_c, port_l))
+legend.labels <- c("Full Investment", "Constraints", "Long Only")
+chart.EfficientFrontierOverlay(R=stock.returns.timeseries.xts,
+                               portfolio_list=portf.list.c, type="mean-StdDev", 
+                               match.col="StdDev", legend.loc="topleft", 
+                               legend.labels=legend.labels, cex.legend=0.6,
+                               labels.assets=FALSE, pch.assets=1)
+```
+
 
 ## Exercise 2: Do it yourself
 
