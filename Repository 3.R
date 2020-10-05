@@ -1,3 +1,4 @@
+ech
 
 ## Exercise 1: Optimzing portfolios
 
@@ -608,8 +609,6 @@ mean_tangencyportfolio/(3*varianz_tangencyportfolio)
 ## Exercise 3: Covariance Problems
 
 In the first part of this exercise we will be checking covariances and portfolios that might occur from faulty correlation matrices. We use the covariance matrix from our example
-
-
 ```{r cov, echo=FALSE, fig.cap="Faulty covariance matrix", out.width = '60%'}
 knitr::include_graphics("cov.png")
 ```
@@ -621,66 +620,54 @@ $w_MP=\frac{\Sigma^{-1}\cdot 1'}{1\cdot\Sigma^{-1}\cdot 1'}$
 where 1 is a vector of ones with dimension equal to the number of assets. Similarly one can calculate the tangency portfolio as
 $w_TP=\frac{\Sigma^{-1}\cdot (\mu-r_f)'}{1\cdot\Sigma^{-1}\cdot (\mu-r_f)'}$.
 
-So to get used to the necessary tools, we use the package "matrixcalc" wherein we have a function `is.positive.semi.definite()` that can check covariance/correlation matrices for positive semidefiniteness. In the package `Matrix` we find a function `nearPD` that can help us to create a valid correlation matrix. Try and calculate the weights of the MVP and the TP, and then calculate portfolio mean and variance using $\mu_P=w\cdot \mu'$ and $\sigma_P^2=w\cdot \Sigma\cdot w'$ for the MVP and the TP as well as the weight vector w=(-1,1,1). Do this for the faulty matrix as well as the corrected one. What do you observe?
 
-
+Create a Correlation-Matrix "R"
 ```{r}
-# Create the Correlation-Matrix "R"
 x1 <- c(1.00, 0.90, 0.90, 0.90, 1.00, 0.00, 0.90, 0.00, 1.00)
 R <- matrix(x1, 3)
 colnames(R) <- c("A", "B", "C")
 rownames(R) <- c("A", "B", "C")
 R
-
-#Define Mu (10%) and Standard Deviation (20%)
+```
+Define Mu (10%) and Standard Deviation (20%)
+```{r}
 mu <- matrix(c(.1, .1, .1), 3)
 sd <- matrix(c(.20, .20, .20), 3)
 mu
 sd
 ```
-
+Create a Covariance Matrix
 ```{r}
-#Create a Covariance Matrix
 covariance_matrix <- diag(sd)*R*diag(sd)
 covariance_matrix
-
---------------------
-
-#Now we can calculate the Minimum-Variance-Portfolio using matrix calculus as
-  
-$w_MP=\frac{\Sigma^{-1}\cdot 1'}{1\cdot\Sigma^{-1}\cdot 1'}$
-where 1 is a vector of ones with dimension equal to the number of assets. Similarly one can calculate the tangency portfolio as
-$w_TP=\frac{\Sigma^{-1}\cdot (\mu-r_f)'}{1\cdot\Sigma^{-1}\cdot (\mu-r_f)'}$.
 ```
-
+Now we can calculate the Minimum-Variance-Portfolio 
 ```{r}
-#Minimum-Variance Portfolio
 onevector <- matrix(c(1, 1, 1), 1)
 wmvpcalctop <- solve(covariance_matrix)%*%t(onevector)
 wmvpcalcbottom <- as.numeric(onevector%*%solve(covariance_matrix)%*%t(onevector))
 wmvp <- wmvpcalctop/wmvpcalcbottom
 wmvp
 ```
-
-#Similarly one can calculate the tangency portfolio as
-$w_TP=\frac{\Sigma^{-1}\cdot (\mu-r_f)'}{1\cdot\Sigma^{-1}\cdot (\mu-r_f)'}$.
-
+Tangency Portfolio (rf=3%)
 ```{r}
-#Tangency Portfolio (rf = 3%)
 wtpcalctop <- (solve(covariance_matrix)%*%(mu-0.03))
 wtpcalcbottom <- as.numeric(onevector%*%solve(covariance_matrix)%*%(mu-0.03))
 wtp <- wtpcalctop/wtpcalcbottom
-wtp #Weights equal to MVP
+wtp   # weights are equal to the MVP
 ```
 
+So to get used to the necessary tools, we use the package "matrixcalc" wherein we have a function `is.positive.semi.definite()` that can check covariance/correlation matrices for positive semidefiniteness. In the package `Matrix` we find a function `nearPD` that can help us to create a valid correlation matrix. Try and calculate the weights of the MVP and the TP, and then calculate portfolio mean and variance using $\mu_P=w\cdot \mu'$ and $\sigma_P^2=w\cdot \Sigma\cdot w'$ for the MVP and the TP as well as the weight vector w=(-1,1,1). Do this for the faulty matrix as well as the corrected one. What do you observe?
 
+Test: Are the matrices definite?
 ```{r}
-#Test: Are the Matrices definite?
-is.positive.semi.definite(R) #FALSE means that the matrix is not positive semi-definite. -> One Eigenvalue is less than zero.
-is.positive.definite(covariance_matrix) # FALSE means as well that the matrix is not positive definite. As soon as one eigenvalues is less than zero, then the matrix is nox positive semi-definite. 
+is.positive.semi.definite(R) 
+#FALSE means that the matrix is not positive semi-definite. -> One Eigenvalue is less than zero.
+is.positive.definite(covariance_matrix) 
+# FALSE means as well that the matrix is not positive definite. As soon as one eigenvalues is less than zero, then the matrix is not positive semi-definite. 
 ```
+Compute the nearest positive definite matrix with the help of nearPD and create a new covariance matrix
 ```{r}
-#Compute the nearest positive definite matrix with the help of nearPD and create a new covariance matrix
 R2 <- nearPD(R,keepDiag = TRUE)
 R2 <- matrix(c( 1.00000, 0.74341, 0.74341,
 0.74341, 1.00000, 0.10532,
@@ -689,80 +676,71 @@ R2 <- matrix(c( 1.00000, 0.74341, 0.74341,
 covmat2 <- diag(sd)*R2*diag(sd)
 ```
 
+Test did it work?
 ```{r}
-#test: did it work?
-is.positive.definite(R2) #Yes
-#test: did it work?
-is.positive.definite(covmat2) #Yes
+is.positive.definite(R2) 
+is.positive.definite(covmat2)
 ```
-
+Calculate the new Minimum-Variance Portfolio
 ```{r}
-#Calculate new Minimum-Variance Portfolio
 wmvpcalctop2 <- solve(covmat2)%*%t(onevector)
 wmvpcalcbottom2 <- as.numeric(onevector%*%solve(covmat2)%*%t(onevector))
 wmvp2 <- wmvpcalctop2/wmvpcalcbottom2
 wmvp2
 ```
-
+Mu
 ```{r}
-#Mu
 mumvp <- t(wmvp)%*%mu
 mumvp2 <- wmvp2[,1]%*%mu
 mumvp2 #Mu didn't change, still 10%
-  ```
-  
-  ```{r}
-  #Standard Deviation
-  sdmvpcalc <- t(wmvp)%*%R%*%wmvp
-  sdmvp <- sqrt(sdmvpcalc)
-  sdmvpcalc2 <- t(wmvp2)%*%R2%*%wmvp2
-  sdmvp2 <- sqrt(sdmvpcalc2)
-  sdmvp2 #Standard Deviation didn't change, still .48%
-  ```
-  ```{r}
-  #Calculate new Tangency Portfolio (rf = 3%)
-  wtpcalctop2 <- (solve(covmat2)%*%(mu-0.03))
-  wtpcalcbottom2 <- as.numeric(onevector%*%solve(covmat2)%*%(mu-0.03))
-  wtp2 <- wtpcalctop2/wtpcalcbottom2
-  wtp2 #Weights again equal to MVP
-  ```
-  
-  ```{r}
-  #Mu
-  muwtp <- t(wtp)%*%mu
-  muwtp2 <- wtp2[,1]%*%mu
-  muwtp2 #Mu didn't change, still 10%
-  ```
-  
-  ```{r}
-  #Standard Deviation
-  sdwtpcalc <- t(wtp)%*%R%*%wtp
-  sdwtp <- sqrt(sdwtpcalc)
-  sdwtpcalc2 <- t(wtp2)%*%R2%*%wtp2
-  sdwtp2 <- sqrt(sdwtpcalc2)
-  sdwtp2 #Standard Deviation didn't change, still .48%
-  ```
-  
-  ```{r}
-  #-1,1,1 portfolio
-  #create the weight vector
-  wv <- matrix(c(-1, 1, 1),3)
-  wv
-  ```
-  
-  ```{r}
-  #Mu
-  muwv <- wv[,1]%*%mu
-  muwv
-  ```
-  ```{r}
-  #Standard Deviation
-  sdwvcalc <- t(wv)%*%R%*%wv
-  sdwv <- sqrt(sdwvcalc)
-  #In sqrt(sdwvcalc) : NaNs produced
-  sdwvcalc <- t(wmvp2)%*%R2%*%wmvp2
-  sdwv2 <- sqrt(sdwvcalc)
-  sdwv2 #Standard Deviation also .48%
-  ```
+```
+Standard Deviation
+```{r}
+sdmvpcalc <- t(wmvp)%*%R%*%wmvp
+sdmvp <- sqrt(sdmvpcalc)
+sdmvpcalc2 <- t(wmvp2)%*%R2%*%wmvp2
+sdmvp2 <- sqrt(sdmvpcalc2)
+sdmvp2 #Standard Deviation didn't change, still .48%
+```
+Calculate the new Tangency Portfolio (rf=3%)
+```{r}
+wtpcalctop2 <- (solve(covmat2)%*%(mu-0.03))
+wtpcalcbottom2 <- as.numeric(onevector%*%solve(covmat2)%*%(mu-0.03))
+wtp2 <- wtpcalctop2/wtpcalcbottom2
+wtp2 #Weights again equal to MVP
+```
+Mu
+```{r}
+muwtp <- t(wtp)%*%mu
+muwtp2 <- wtp2[,1]%*%mu
+muwtp2 #Mu didn't change, still 10%
+```
+Standard Deviation
+```{r}
+sdwtpcalc <- t(wtp)%*%R%*%wtp
+sdwtp <- sqrt(sdwtpcalc)
+sdwtpcalc2 <- t(wtp2)%*%R2%*%wtp2
+sdwtp2 <- sqrt(sdwtpcalc2)
+sdwtp2 #Standard Deviation didn't change, still .48%
+```
+
+-1,1,1 portfolio
+```{r}
+wv <- matrix(c(-1, 1, 1),3)
+wv
+```
+Mu 
+```{r}
+muwv <- wv[,1]%*%mu
+muwv
+```
+Standard Deviation
+```{r}
+sdwvcalc <- t(wv)%*%R%*%wv
+sdwv <- sqrt(sdwvcalc)
+#In sqrt(sdwvcalc) : NaNs produced
+sdwvcalc <- t(wmvp2)%*%R2%*%wmvp2
+sdwv2 <- sqrt(sdwvcalc)
+sdwv2 #Standard Deviation also .48%
   
 
