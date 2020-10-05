@@ -1,14 +1,10 @@
+---
+title: "Portfoliomanagment Task 3"
+author: "David Greussing"
+date: "5 10 2020"
+output: html_document
+---
 
----
-  title: "3 Aufgabe"
-author: "DG"
-date: "05 October 2020"
-output:
-  html_document: default
----
-  
-  ```{r,eval=TRUE}
-```
 
 ## Exercise 1: Optimzing portfolios
 
